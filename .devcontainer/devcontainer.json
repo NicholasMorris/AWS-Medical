@@ -1,0 +1,42 @@
+{
+  "name": "uv",
+  "build": { "dockerfile": "Dockerfile" },
+  "remoteUser": "developer",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "streetsidesoftware.code-spell-checker",
+        "esbenp.prettier-vscode",
+        "AmazonWebServices.aws-toolkit-vscode",
+        "ms-vscode.makefile-tools",
+        "ms-azuretools.vscode-docker",
+        "GitHub.copilot-chat",
+        "GitHub.copilot",
+        "hashicorp.terraform",
+        "eamodio.gitlens",
+        "esbenp.prettier-vscode",
+        "donjayamanne.python-environment-manager",
+      ]
+    }
+},
+"features": {
+	"ghcr.io/devcontainers/features/aws-cli:1": {},
+	"ghcr.io/devcontainers/features/terraform:1": {},
+	"ghcr.io/devcontainers/features/python:1": {
+            "installTools": true,
+            "version": "3.13",
+            "pipenv": true,
+            "poetry": true
+        }
+},
+"mounts": [
+        "source=${localEnv:HOME}/.aws,target=/home/developer/.aws,type=bind",
+        "source=${localEnv:HOME}/.ssh/id_rsa,target=/home/developer/.ssh/known_hosts,type=bind",
+        "source=${localEnv:HOME}/.ssh/id_rsa,target=/home/developer/.ssh/id_rsa,type=bind"
+    ],
+  "containerEnv": {
+        "AWS_PROFILE": "admin"
+    }
+
+}
