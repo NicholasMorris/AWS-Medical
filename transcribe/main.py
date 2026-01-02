@@ -10,11 +10,12 @@ def medical_transcription_with_comprehend(
     specialty="PRIMARYCARE",
     transcription_type="CONVERSATION",
     max_speakers=2,
-    region_name="us-east-1"
+    show_alternatives=False,
+    max_alternatives=2,
+    region_name="ap-southeast-2"
 ):
     """
     Perform medical transcription with speaker diarization and analyze with Comprehend Medical
-    Supports .m4a files along with other formats (wav, mp3, mp4, flac, ogg, amr, webm)
     
     Args:
         audio_file_uri (str): S3 URI of the .m4a file (e.g., "s3://bucket/path/file.m4a")
@@ -23,6 +24,8 @@ def medical_transcription_with_comprehend(
         specialty (str): Medical specialty - "PRIMARYCARE" (only option currently)
         transcription_type (str): "CONVERSATION" or "DICTATION"
         max_speakers (int): Maximum number of speakers to identify
+        show_alternatives (bool): Whether to show alternative transcriptions
+        max_alternatives (int): Number of alternatives (only used if show_alternatives=True)
         region_name (str): AWS region
     
     Returns:
@@ -40,6 +43,19 @@ def medical_transcription_with_comprehend(
     print(f"Starting medical transcription job: {job_name}")
     print(f"Processing .m4a file: {audio_file_uri}")
     
+    # Build settings dictionary based on parameters
+    settings = {
+        'ShowSpeakerLabels': True,  # Enable speaker diarization
+        'MaxSpeakerLabels': max_speakers
+    }
+    
+    # Only add alternatives settings if ShowAlternatives is True
+    if show_alternatives:
+        settings['ShowAlternatives'] = True
+        settings['MaxAlternatives'] = max_alternatives
+    
+    print(f"Transcription settings: {settings}")
+    
     # Start medical transcription job with speaker diarization
     transcribe.start_medical_transcription_job(
         MedicalTranscriptionJobName=job_name,
@@ -51,12 +67,7 @@ def medical_transcription_with_comprehend(
         LanguageCode='en-US',
         Specialty=specialty,
         Type=transcription_type,
-        Settings={
-            'ShowSpeakerLabels': True,  # Enable speaker diarization
-            'MaxSpeakerLabels': max_speakers,
-            'ShowAlternatives': False,  # Set to True if you want alternative transcriptions
-            'MaxAlternatives': 2
-        }
+        Settings=settings
     )
     
     # Wait for transcription to complete
@@ -71,9 +82,9 @@ def medical_transcription_with_comprehend(
         
         if job_status in ['COMPLETED', 'FAILED']:
             break
-        
-        time.sleep(30)  # Check every 30 seconds
-    
+
+        time.sleep(10)  # Check every 10 seconds
+
     if job_status == 'FAILED':
         failure_reason = status['MedicalTranscriptionJob'].get('FailureReason', 'Unknown error')
         raise Exception(f"Transcription job failed: {failure_reason}")
@@ -82,9 +93,43 @@ def medical_transcription_with_comprehend(
     transcript_uri = status['MedicalTranscriptionJob']['Transcript']['TranscriptFileUri']
     print(f"Transcription completed. Results at: {transcript_uri}")
     
-    # Download and parse transcription results
-    with urllib.request.urlopen(transcript_uri) as response:
-        transcript_data = json.loads(response.read().decode())
+    transcript_uri = status['MedicalTranscriptionJob']['Transcript']['TranscriptFileUri']
+    print(f"Transcription completed. Results at: {transcript_uri}")
+    
+    # Parse the S3 URI to get bucket and key
+    # URI format: https://s3.region.amazonaws.com/bucket/key
+    # or s3://bucket/key
+    if transcript_uri.startswith('https://'):
+        # Parse HTTPS URL
+        # Example: https://s3.ap-southeast-2.amazonaws.com/bucket/transcription-output/medical/job.json
+        parts = transcript_uri.replace('https://', '').split('/')
+        if parts[0].startswith('s3.'):
+            # Format: s3.region.amazonaws.com/bucket/key
+            bucket_name = parts[1]
+            s3_key = '/'.join(parts[2:])
+        else:
+            # Format: bucket.s3.region.amazonaws.com/key
+            bucket_name = parts[0].split('.')[0]
+            s3_key = '/'.join(parts[1:])
+    elif transcript_uri.startswith('s3://'):
+        # Parse S3 URI
+        uri_parts = transcript_uri.replace('s3://', '').split('/', 1)
+        bucket_name = uri_parts[0]
+        s3_key = uri_parts[1] if len(uri_parts) > 1 else ''
+    else:
+        raise Exception(f"Unsupported transcript URI format: {transcript_uri}")
+    
+    print(f"Downloading transcript from bucket: {bucket_name}, key: {s3_key}")
+    
+    # Download and parse transcription results using S3 client
+    try:
+        response = s3.get_object(Bucket=bucket_name, Key=s3_key)
+        transcript_data = json.loads(response['Body'].read().decode('utf-8'))
+    except Exception as e:
+        print(f"Error downloading transcript: {str(e)}")
+        print(f"Bucket: {bucket_name}")
+        print(f"Key: {s3_key}")
+        raise Exception(f"Failed to download transcript from S3: {str(e)}")
     
     # Extract transcript text and speaker information
     transcript_text = transcript_data['results']['transcripts'][0]['transcript']
@@ -184,6 +229,105 @@ def medical_transcription_with_comprehend(
     
     return results
 
+def upload_m4a_to_s3(local_file_path, bucket_name, s3_key=None, region_name="us-east-1"):
+    """
+    Upload local .m4a file to S3
+    """
+    s3 = boto3.client('s3', region_name=region_name)
+    
+    # Auto-generate S3 key if not provided
+    if s3_key is None:
+        filename = os.path.basename(local_file_path)
+        timestamp = int(time.time())
+        s3_key = f"medical-audio/{timestamp}-{filename}"
+    
+    try:
+        # Check if file exists
+        if not os.path.exists(local_file_path):
+            raise FileNotFoundError(f"Local file not found: {local_file_path}")
+        
+        # Get file size for progress
+        file_size = os.path.getsize(local_file_path)
+        print(f"Uploading {local_file_path} ({file_size / (1024*1024):.2f} MB) to s3://{bucket_name}/{s3_key}")
+        
+        s3.upload_file(
+            local_file_path, 
+            bucket_name, 
+            s3_key,
+            ExtraArgs={'ContentType': 'audio/mp4'}
+        )
+        
+        s3_uri = f"s3://{bucket_name}/{s3_key}"
+        print(f"Upload completed: {s3_uri}")
+        return s3_uri
+        
+    except Exception as e:
+        raise Exception(f"Failed to upload file to S3: {str(e)}")
+
+def process_local_m4a_file(
+    local_file_path,
+    bucket_name,
+    output_bucket_name=None,
+    job_name_prefix="medical-transcription",
+    specialty="PRIMARYCARE",
+    transcription_type="CONVERSATION",
+    max_speakers=2,
+    show_alternatives=False,  # Default to False to avoid the error
+    max_alternatives=2,
+    region_name="us-east-1",
+    cleanup_s3_file=False
+):
+    """
+    Complete workflow: Upload local .m4a file and process it
+    """
+    
+    if output_bucket_name is None:
+        output_bucket_name = bucket_name
+    
+    try:
+        # Step 1: Upload local file to S3
+        print("Step 1: Uploading local .m4a file to S3...")
+        s3_uri = upload_m4a_to_s3(
+            local_file_path=local_file_path,
+            bucket_name=bucket_name,
+            region_name=region_name
+        )
+        
+        # Step 2: Process the file
+        print("\nStep 2: Starting medical transcription and analysis...")
+        results = medical_transcription_with_comprehend(
+            audio_file_uri=s3_uri,
+            output_bucket_name=output_bucket_name,
+            job_name_prefix=job_name_prefix,
+            specialty=specialty,
+            transcription_type=transcription_type,
+            max_speakers=max_speakers,
+            show_alternatives=show_alternatives,
+            max_alternatives=max_alternatives,
+            region_name=region_name
+        )
+        
+        # Step 3: Optional cleanup
+        if cleanup_s3_file:
+            print("\nStep 3: Cleaning up uploaded file...")
+            s3 = boto3.client('s3', region_name=region_name)
+            s3_key = s3_uri.replace(f"s3://{bucket_name}/", "")
+            s3.delete_object(Bucket=bucket_name, Key=s3_key)
+            print(f"Deleted: {s3_uri}")
+        
+        # Add upload info to results
+        results['source_file'] = {
+            'local_path': local_file_path,
+            's3_uri': s3_uri,
+            'cleanup_performed': cleanup_s3_file
+        }
+        
+        return results
+        
+    except Exception as e:
+        print(f"Error processing local file: {str(e)}")
+        raise
+
 def upload_m4a_to_s3(local_file_path, bucket_name, s3_key, region_name="us-east-1"):
     """
     Helper function to upload .m4a file to S3
@@ -266,11 +410,11 @@ def print_analysis_summary(results):
 # Example usage for .m4a files
 if __name__ == "__main__":
     # Configuration
-    LOCAL_M4A_FILE = "/path/to/your/medical-recording.m4a"  # Replace with your local .m4a file path
-    BUCKET_NAME = "your-bucket-name"  # Replace with your S3 bucket
-    S3_KEY = "medical-audio/recording.m4a"  # S3 path for your file
-    OUTPUT_BUCKET = "your-output-bucket"  # Replace with your output bucket
-    REGION = "us-east-1"  # Replace with your preferred region
+    LOCAL_M4A_FILE = "/workspaces/AWS Medical/transcribe/recordings/recording1.m4a"  # Replace with your local .m4a file path
+    BUCKET_NAME = "askladmk43320la"  # Replace with your S3 bucket
+    S3_KEY = "recordings/recording.m4a"  # S3 path for your file
+    OUTPUT_BUCKET = "askladmk43320la"  # Replace with your output bucket
+    REGION = "ap-southeast-2"  # Replace with your preferred region
     
     try:
         # Option 1: If file is already in S3
@@ -293,7 +437,7 @@ if __name__ == "__main__":
             job_name_prefix="m4a-medical-analysis",
             specialty="PRIMARYCARE",
             transcription_type="CONVERSATION",  # Use "DICTATION" for single speaker
-            max_speakers=3,  # Adjust based on expected number of speakers
+            max_speakers=2,  # Adjust based on expected number of speakers
             region_name=REGION
         )
         

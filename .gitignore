@@ -6,6 +6,7 @@ dist/
 wheels/
 *.egg-info
 .ssh/
+.aws/
 
 # Data files
 transcribe/recordings/

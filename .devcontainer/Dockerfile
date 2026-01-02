@@ -42,3 +42,10 @@ RUN <<EOT
     echo 'eval "$(uv generate-shell-completion zsh)"' >> ~/.zshrc
     echo 'eval "$(uvx --generate-shell-completion zsh)"' >> ~/.zshrc
 EOT
+
+RUN <<EOT
+    sudo apt-get update && sudo apt-get install -y \
+    portaudio19-dev libportaudio2 libportaudiocpp0 \
+    alsa-utils pulseaudio \
+    && sudo rm -rf /var/lib/apt/lists/*
+EOT
