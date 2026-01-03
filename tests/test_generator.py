@@ -10,12 +10,9 @@ from src.clinical_notes.soap.generator import generate_soap_note
 def create_mock_bedrock_response(soap_json_content):
     """Create a mock Bedrock response with SOAP JSON."""
     response_body = json.dumps({
-        "content": [
-            {
-                "type": "text",
-                "text": json.dumps(soap_json_content)
-            }
-        ]
+        "output": {"message": {"content": [
+            {"type": "output_text", "text": json.dumps(soap_json_content)}
+        ]}}
     })
     
     mock_response = {
@@ -26,7 +23,7 @@ def create_mock_bedrock_response(soap_json_content):
 
 
 class TestSOAPNoteGeneration:
-    """Tests for SOAP note generation with Claude."""
+    """Tests for SOAP note generation."""
 
     @patch("src.clinical_notes.soap.generator.bedrock")
     def test_generate_soap_note_returns_dict(self, mock_bedrock):
@@ -116,7 +113,7 @@ class TestSOAPNoteGeneration:
 
     @patch("src.clinical_notes.soap.generator.bedrock")
     def test_generate_soap_note_uses_correct_model(self, mock_bedrock):
-        """generate_soap_note should use Claude 3.5 Sonnet model."""
+        """generate_soap_note should use the configured model by default."""
         expected_soap = {
             "subjective": "Test",
             "objective": "Test",
@@ -130,7 +127,8 @@ class TestSOAPNoteGeneration:
         generate_soap_note(encounter)
         
         call_kwargs = mock_bedrock.invoke_model.call_args[1]
-        assert call_kwargs["modelId"] == "anthropic.claude-3-sonnet-20240229-v1:0"
+        # Default model should reference nova (project currently only supports nova)
+        assert "nova" in call_kwargs["modelId"]
 
     @patch("src.clinical_notes.soap.generator.bedrock")
     def test_generate_soap_note_passes_encounter_data_to_model(self, mock_bedrock):
@@ -156,8 +154,8 @@ class TestSOAPNoteGeneration:
         call_kwargs = mock_bedrock.invoke_model.call_args[1]
         body = json.loads(call_kwargs["body"])
         
-        # Verify encounter data is in the body
-        user_message = body["messages"][0]["content"]
+        # Verify encounter data is in the body (Nova Invoke API uses `messages`)
+        user_message = body.get("messages", [])[0]["content"][0]["text"]
         assert "Specific medical transcript content" in user_message
 
     @patch("src.clinical_notes.soap.generator.bedrock")
@@ -210,8 +208,8 @@ class TestSOAPNoteGeneration:
         
         call_kwargs = mock_bedrock.invoke_model.call_args[1]
         body = json.loads(call_kwargs["body"])
-        
-        assert body["temperature"] == 0.2
+
+        assert body["inferenceConfig"]["temperature"] == 0.2
 
     @patch("src.clinical_notes.soap.generator.bedrock")
     def test_generate_soap_note_uses_nova_model_when_requested(self, mock_bedrock):
@@ -232,8 +230,8 @@ class TestSOAPNoteGeneration:
         # Bedrock may accept either short model id or full ARN; verify it contains 'nova'
         assert "nova" in call_kwargs["modelId"]
         body = json.loads(call_kwargs["body"])
-        # Nova adapter places prompt under `input`
-        assert "input" in body
+        # Nova Invoke API places prompt under `messages`
+        assert "messages" in body
 
 
 class TestSOAPNoteValidation:

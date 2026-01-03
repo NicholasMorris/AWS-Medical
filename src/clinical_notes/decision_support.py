@@ -2,8 +2,8 @@
 
 import json
 from typing import Dict, Optional
-from src.common.aws import get_bedrock_runtime
-from src.common.models import MODEL_MAP, get_default_model
+from src.common.aws import get_bedrock_runtime, build_nova_request, parse_nova_response
+from src.common.models import MODEL_MAP
 
 bedrock = get_bedrock_runtime()
 
@@ -76,32 +76,27 @@ Return valid JSON with key: prompts (list of strings)
 Each prompt should start with "Consider...", "No red flags...", or "Document..."
 """
 
-    body = {
-        "max_tokens": 500,
-        "temperature": 0.3,
-        "messages": [
-            {"role": "user", "content": user_prompt}
-        ]
-    }
+    body = build_nova_request(user_prompt, temperature=0.3, max_tokens=512, system_prompt=system_prompt)
 
     # Decision support defaults to 'nova' for speed/cost (module-specific default)
     model_name = model or "nova"
-    model_id = MODEL_MAP.get(model_name, MODEL_MAP["nova"])
+    if model_name not in MODEL_MAP:
+        raise ValueError(f"Unsupported model: {model_name}")
+    model_id = MODEL_MAP[model_name]
 
     response = bedrock.invoke_model(
         modelId=model_id,
         body=json.dumps(body)
     )
 
-    raw_output = response["body"].read().decode("utf-8")
-    model_response = json.loads(raw_output)
-
-    prompts_json = model_response["content"][0]["text"]
-    prompts_data = json.loads(prompts_json)
+    raw_output = response["body"].read()
+    prompts_data = parse_nova_response(raw_output)
     
     # Validate that output contains prompts
-    if "prompts" not in prompts_data:
+    if not isinstance(prompts_data, dict):
         prompts_data = {"prompts": []}
+    if "prompts" not in prompts_data:
+        prompts_data["prompts"] = []
     
     # Add metadata if provided
     if encounter_id:

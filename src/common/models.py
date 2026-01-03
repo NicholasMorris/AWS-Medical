@@ -3,7 +3,6 @@ from typing import Dict
 
 # Centralized model mapping for the project. Update ARNs or short ids here.
 MODEL_MAP: Dict[str, str] = {
-    "claude": "anthropic.claude-3-sonnet-20240229-v1:0",
     # Use full Bedrock ARN for Nova invocation
     "nova": "arn:aws:bedrock:ap-southeast-2:721285384514:inference-profile/apac.amazon.nova-lite-v1:0",
 }

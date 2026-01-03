@@ -5,7 +5,7 @@ AWS-Medical is a Python application that converts medical audio recordings into 
 
 - **Transcription Pipeline**: Audio → transcribed text (via AWS Transcribe)
 - **Clinical Analysis**: Transcripts → medical entity extraction (via AWS Comprehend Medical)
-- **Documentation Generation**: Extracted data → SOAP notes (via Claude on Bedrock)
+- **Documentation Generation**: Extracted data → SOAP notes (via Bedrock Nova)
 
 The project is modularized under `src/`, with **common utilities** in `src/common/`. The agent should maintain clean, testable, and reusable code.
 
@@ -19,7 +19,7 @@ The project is modularized under `src/`, with **common utilities** in `src/commo
    - `batch.py`: Batch transcription of medical audio files (.m4a) with speaker diarization  
 
 2. **`src/clinical_notes/soap/`** – Clinical documentation generation  
-   - `generator.py`: Claude Bedrock integration to generate SOAP notes from encounter JSON  
+   - `generator.py`: Bedrock (Nova) integration to generate SOAP notes from encounter JSON  
    - System prompts enforce Australian GP conventions and prevent hallucination  
 
 3. **`src/clinical_notes/decision_support.py`** – Non-diagnostic decision support
@@ -199,7 +199,7 @@ pytest tests/ --cov=src --cov-report=html
 - Default region: `ap-southeast-2`  
 - Language code: `en-AU`  
 - **Nova Model**: `amazon.nova-2-lite-v1:0` used for decision support and patient artefacts (cost-effective, fast)
-- **Claude Model**: `anthropic.claude-3-sonnet-20240229-v1:0` used for SOAP notes (higher quality, comprehensive)
+- **Default SOAP model**: `nova` (Bedrock) is used for SOAP notes by default
 
 ---
 

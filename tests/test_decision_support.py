@@ -117,10 +117,10 @@ def test_decision_support_model_parameters(mock_invoke, sample_encounter_json):
     # Bedrock may accept short model id or full ARN; verify it references Nova
     assert "nova" in call_kwargs["modelId"]
     
-    # Verify body has correct structure
+    # Verify body has correct structure (Nova Invoke API: messages + inferenceConfig)
     body = json.loads(call_kwargs["body"])
-    assert body["temperature"] == 0.3
-    assert body["max_tokens"] == 500
+    assert body["inferenceConfig"]["temperature"] == 0.3
+    assert body["inferenceConfig"]["maxTokens"] == 512
     assert "messages" in body
 
 
@@ -233,15 +233,12 @@ def test_decision_support_preserves_structure(mock_invoke, sample_encounter_json
 
 @patch("src.clinical_notes.decision_support.bedrock.invoke_model")
 def test_decision_support_model_switching(mock_invoke, sample_encounter_json):
-    """Test that passing model='claude' uses Claude model id."""
+    """Removed: Claude model no longer supported; ensure passing unknown model raises."""
     mock_invoke.return_value = create_mock_bedrock_response([
         "Consider: example",
         "No red flags.",
         "Document: example"
     ])
 
-    generate_decision_support_prompts(sample_encounter_json, model="claude")
-
-    assert mock_invoke.called
-    call_kwargs = mock_invoke.call_args[1]
-    assert "claude" in call_kwargs["modelId"] or "anthropic" in call_kwargs["modelId"]
+    with pytest.raises(Exception):
+        generate_decision_support_prompts(sample_encounter_json, model="claude")

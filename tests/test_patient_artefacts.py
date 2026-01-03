@@ -12,11 +12,11 @@ from src.clinical_notes.patient_artefacts import (
 
 def create_mock_bedrock_response(text: str) -> dict:
     """Create a mock Bedrock response."""
-    return {
-        "body": MagicMock(read=lambda: json.dumps({
-            "content": [{"text": text}]
-        }).encode("utf-8"))
+    # New Nova response wrapper: output.message.content -> list of blocks
+    response_body = {
+        "output": {"message": {"content": [{"text": text}]}}
     }
+    return {"body": MagicMock(read=lambda: json.dumps(response_body).encode("utf-8"))}
 
 
 @pytest.fixture
@@ -174,30 +174,20 @@ def test_all_artefacts_model_parameters(mock_invoke, sample_encounter_json):
         # Bedrock may accept short model id or full ARN; verify it references Nova
         assert "nova" in call_kwargs["modelId"]
         
-        # Verify body has correct structure
+        # Verify body has correct structure (Nova Invoke API: messages + inferenceConfig)
         body = json.loads(call_kwargs["body"])
-        assert body["temperature"] == 0.2
-        assert body["max_tokens"] == 300
+        assert body["inferenceConfig"]["temperature"] == 0.2
+        assert body["inferenceConfig"]["maxTokens"] == 300
         assert "messages" in body
 
 
 @patch("src.clinical_notes.patient_artefacts.bedrock.invoke_model")
 def test_patient_artefacts_model_switching(mock_invoke, sample_encounter_json):
-    """Test that patient artefacts functions can switch to Claude model."""
+    """Removed: Claude model no longer supported; ensure unsupported model raises."""
     mock_invoke.return_value = create_mock_bedrock_response("Sample text")
 
-    funcs = [
-        (generate_patient_handout, {}),
-        (generate_after_visit_summary, {}),
-        (generate_followup_checklist, {})
-    ]
-
-    for func, kwargs in funcs:
-        mock_invoke.reset_mock()
-        func(sample_encounter_json, model="claude")
-        assert mock_invoke.called
-        call_kwargs = mock_invoke.call_args[1]
-        assert "claude" in call_kwargs["modelId"] or "anthropic" in call_kwargs["modelId"]
+    with pytest.raises(Exception):
+        generate_patient_handout(sample_encounter_json, model="claude")
 
 
 @patch("src.clinical_notes.patient_artefacts.bedrock.invoke_model")

@@ -1,14 +1,14 @@
 # AWS-Medical: Audio-to-SOAP Clinical Notes
 
-A Python application that converts medical audio recordings into structured clinical SOAP notes using AWS services and Claude on Bedrock.
+A Python application that converts medical audio recordings into structured clinical SOAP notes using AWS services and Bedrock (Nova model).
 
-**Pipeline**: Audio (S3) → Transcription (AWS Transcribe) → Entity Extraction (AWS Comprehend Medical) → SOAP Notes (Claude Bedrock)
+**Pipeline**: Audio (S3) → Transcription (AWS Transcribe) → Entity Extraction (AWS Comprehend Medical) → SOAP Notes (Bedrock Nova)
 
 ## Features
 
 - **Live Transcription**: Real-time medical audio streaming via AWS Transcribe Streaming
 - **Batch Transcription**: Process .m4a files with speaker diarization and medical entity extraction
-- **SOAP Note Generation**: Structured clinical documentation from transcription data using Claude 3.5 Sonnet
+- **SOAP Note Generation**: Structured clinical documentation from transcription data using Bedrock (Nova)
 - **Dynamic ID Correlation**: Encounter and correlation IDs for traceability across the pipeline
 - **Australian GP Context**: Clinical prompts follow Australian general practice conventions
 
@@ -77,7 +77,7 @@ python -m src.clinical_notes.soap.run
 This will:
 1. Find the most recent `medical_analysis_results_*.json` in `data/outputs/`
 2. Extract encounter and correlation IDs
-3. Generate SOAP note with Claude Bedrock
+3. Generate SOAP note with the configured Bedrock model (Nova by default)
 4. Save as `soap_output_{encounter_id}_{timestamp}.json` with full correlation metadata
 
 ### Process Audio File (Batch Transcription)
@@ -119,7 +119,7 @@ src/
 │   ├── decision_support.py   # "Did you consider?" prompts (non-diagnostic)
 │   ├── patient_artefacts.py  # Handout, summary, checklist (plain English)
 │   └── soap/                 # SOAP note generation
-│       ├── generator.py      # Claude Bedrock integration
+│       ├── generator.py      # Bedrock (Nova) integration
 │       └── run.py            # SOAP + optional features pipeline
 └── transcription/            # Audio processing
     ├── batch.py             # Batch transcription + Comprehend Medical
@@ -157,7 +157,7 @@ medical_analysis_results_{encounter_id}_{timestamp}.json
     └─ phi_entities
     ↓
 generate_soap_note()
-    ├─ Claude Bedrock (temperature: 0.2, conservative)
+    ├─ Bedrock (Nova) (temperature: 0.2, conservative)
     └─ Australian GP prompts
     ↓
 save_soap_note()
@@ -330,7 +330,7 @@ Medical transcription uses:
 
 ### SOAP Generation Settings
 
-Claude model: `anthropic.claude-3-sonnet-20240229-v1:0`
+Default Bedrock model: `nova` (configured via `src/common/models.py`)
 - Temperature: `0.2` (conservative, low hallucination)
 - Max tokens: `800`
 - System prompt enforces Australian GP conventions
@@ -339,7 +339,7 @@ Claude model: `anthropic.claude-3-sonnet-20240229-v1:0`
 
 You can switch the LLM used for SOAP generation or opt into using LangChain as an intermediary.
 
-- To select the model at call time, pass `model="nova"` or `model="claude"` to `generate_soap_note()`.
+-- To select the model at call time, pass `model="nova"` to `generate_soap_note()`. The codebase currently supports `nova` as the default and will raise on unknown models.
 
 - To enable LangChain routing (optional), set the environment variable `USE_LANGCHAIN=1` and install `langchain`:
 

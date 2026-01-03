@@ -1,52 +1,41 @@
 """Optional LangChain adapter for Bedrock-backed LLM calls.
 
-This module is intentionally lightweight and optional. If `langchain`
-is not installed, importing or calling `call_model_via_langchain` will
-raise a RuntimeError instructing the user to install LangChain.
-
-The function returns a dict (parsed JSON) representing the SOAP note.
+This module provides a fallback that calls Bedrock directly (using the same
+request/response format as the project's `ModelAdapter`). This avoids LangChain
+format mismatches (e.g. missing `messages`) while keeping the `USE_LANGCHAIN`
+switchable path intact.
 """
 from typing import Dict
 import json
 import os
 
 from src.common.models import MODEL_MAP, get_default_model
+from src.common.aws import get_bedrock_runtime
+from src.clinical_notes.soap.generator import ModelAdapter
 
 
-def call_model_via_langchain(encounter_json: Dict, model_name: str = "claude") -> Dict:
-    """Call Bedrock via LangChain's Bedrock LLM wrapper and return parsed JSON.
-
-    This requires `langchain` to be installed. It will instantiate the
-    `langchain.llms.Bedrock` LLM with `model_id` and `region_name` where
-    available, then call it with the same prompt used elsewhere and parse
-    the returned text as JSON.
+def call_model_via_langchain(encounter_json: Dict, model_name: str = "nova") -> Dict:
     """
-    try:
-        from langchain.llms import Bedrock  # type: ignore
-    except Exception as exc:
-        raise RuntimeError("LangChain is not installed. Install 'langchain' to use this adapter.") from exc
+    Call Bedrock directly and return parsed JSON.
 
+    This function preserves the same request/response shape used by the
+    non-LangChain path by delegating build/parse to `ModelAdapter`. It is
+    intentionally lightweight and avoids constructing LangChain-specific
+    payloads that can lead to Bedrock validation errors.
+    """
     model_name = model_name or get_default_model()
-    model_id = MODEL_MAP.get(model_name, MODEL_MAP["claude"])
+    adapter = ModelAdapter(model_name=model_name)
+
     region = os.getenv("AWS_REGION", "ap-southeast-2")
+    bedrock = get_bedrock_runtime(region)
 
-    # Build the prompt similar to generator's user_prompt
-    user_prompt = f"""
-Encounter data (JSON):
-{json.dumps(encounter_json, indent=2)}
+    body = adapter.build_request(encounter_json)
 
-Generate a SOAP note with keys: subjective, objective, assessment, plan. Return JSON only.
-"""
+    response = bedrock.invoke_model(
+        modelId=adapter.model_id,
+        body=json.dumps(body),
+    )
 
-    # Instantiate LangChain Bedrock LLM
-    llm = Bedrock(model_id=model_id, region_name=region)
-
-    text = llm(user_prompt)
-
-    try:
-        return json.loads(text)
-    except Exception:
-        # If model returns wrapped JSON, try to extract JSON substring
-        # fallback to raise so tests can mock this function
-        raise RuntimeError("LangChain model did not return valid JSON")
+    raw_output = response["body"].read()
+    return adapter.parse_response(raw_output)
 

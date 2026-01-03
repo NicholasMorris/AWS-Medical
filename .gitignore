@@ -13,3 +13,6 @@ transcribe/recordings/
 
 # Virtual environments
 .venv
+
+# ignore data files
+data/

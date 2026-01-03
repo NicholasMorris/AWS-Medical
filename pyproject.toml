@@ -1,7 +1,7 @@
 [project]
 name = "aws-medical"
 version = "0.1.0"
-description = "Convert medical audio recordings to SOAP notes using AWS services and Claude on Bedrock"
+description = "Convert medical audio recordings to SOAP notes using AWS services and Bedrock (Nova)"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
@@ -24,4 +24,5 @@ dev = [
 ]
 langchain = [
     "langchain>=0.0.300",
+    "langchain-aws>=0.0.50",
 ]
