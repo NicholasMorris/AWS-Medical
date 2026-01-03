@@ -1,6 +1,6 @@
 import json
 import boto3
-from typing import Dict
+from typing import Dict, Optional
 from src.common.aws import get_bedrock_runtime
 
 REGION = "ap-southeast-2"
@@ -8,9 +8,21 @@ MODEL_ID = "anthropic.claude-3-sonnet-20240229-v1:0"
 
 bedrock = get_bedrock_runtime()
 
-def generate_soap_note(encounter_json: Dict) -> Dict:
+def generate_soap_note(
+    encounter_json: Dict,
+    encounter_id: Optional[str] = None,
+    correlation_id: Optional[str] = None
+) -> Dict:
     """
     Generate a clinical SOAP note from transcription + entity JSON.
+    
+    Args:
+        encounter_json: Medical encounter data from transcription
+        encounter_id: Optional encounter ID for correlation
+        correlation_id: Optional correlation ID for tracking
+        
+    Returns:
+        Dict with SOAP note structure and metadata
     """
 
     system_prompt = """
@@ -76,5 +88,12 @@ subjective, objective, assessment, plan
     model_response = json.loads(raw_output)
 
     soap_json = model_response["content"][0]["text"]
-
-    return json.loads(soap_json)
+    soap_data = json.loads(soap_json)
+    
+    # Add metadata if provided
+    if encounter_id:
+        soap_data['encounter_id'] = encounter_id
+    if correlation_id:
+        soap_data['correlation_id'] = correlation_id
+    
+    return soap_data

@@ -1,0 +1,20 @@
+{
+  "encounter_id": "cb12c4ce-a45b-4e8e-9a26-173fac708c50",
+  "correlation_id": "06c27c86-a609-4078-aa92-aa4ed13f73e9",
+  "timestamp": 1767402570,
+  "soap_note": {
+    "subjective": {
+      "presenting_complaint": "Headaches for 2 weeks",
+      "history_of_presenting_illness": "Daily headaches, dull pressure quality"
+    },
+    "objective": {
+      "examination_findings": "Normal examination"
+    },
+    "assessment": {
+      "working_diagnosis": "Tension-type headaches"
+    },
+    "plan": {
+      "management_advice": "Screen breaks, hydration, relaxation"
+    }
+  }
+}
