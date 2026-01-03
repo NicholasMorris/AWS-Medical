@@ -149,3 +149,91 @@ def save_soap_note(
     save_json(soap_with_metadata, file_path)
     
     return file_path
+
+
+def save_decision_support_prompts(
+    prompts_data: Dict,
+    output_dir: str = "/workspaces/AWS-Medical/data/outputs",
+    encounter_id: Optional[str] = None,
+    correlation_id: Optional[str] = None
+) -> str:
+    """
+    Save decision support prompts with dynamic naming and correlation IDs.
+    
+    Args:
+        prompts_data: Decision support prompts dict
+        output_dir: Directory to save file
+        encounter_id: Encounter ID to correlate with medical analysis
+        correlation_id: Correlation ID
+        
+    Returns:
+        Path to saved file
+    """
+    # Generate IDs if not provided
+    encounter_id = encounter_id or generate_encounter_id()
+    correlation_id = correlation_id or generate_correlation_id()
+    timestamp = get_timestamp()
+    
+    # Add IDs and metadata to prompts data
+    prompts_with_metadata = {
+        'encounter_id': encounter_id,
+        'correlation_id': correlation_id,
+        'timestamp': timestamp,
+        'decision_support': prompts_data
+    }
+    
+    # Create output directory if it doesn't exist
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+    
+    # Generate filename
+    filename = f"decision_support_{encounter_id}_{timestamp}.json"
+    file_path = os.path.join(output_dir, filename)
+    
+    # Save file
+    save_json(prompts_with_metadata, file_path)
+    
+    return file_path
+
+
+def save_patient_artefacts(
+    artefacts_data: Dict,
+    output_dir: str = "/workspaces/AWS-Medical/data/outputs",
+    encounter_id: Optional[str] = None,
+    correlation_id: Optional[str] = None
+) -> str:
+    """
+    Save patient artefacts (handout, summary, checklist) with dynamic naming and IDs.
+    
+    Args:
+        artefacts_data: Patient artefacts dict (contains handout, summary, checklist)
+        output_dir: Directory to save file
+        encounter_id: Encounter ID to correlate with medical analysis
+        correlation_id: Correlation ID
+        
+    Returns:
+        Path to saved file
+    """
+    # Generate IDs if not provided
+    encounter_id = encounter_id or generate_encounter_id()
+    correlation_id = correlation_id or generate_correlation_id()
+    timestamp = get_timestamp()
+    
+    # Add IDs and metadata to artefacts data
+    artefacts_with_metadata = {
+        'encounter_id': encounter_id,
+        'correlation_id': correlation_id,
+        'timestamp': timestamp,
+        'patient_artefacts': artefacts_data
+    }
+    
+    # Create output directory if it doesn't exist
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+    
+    # Generate filename
+    filename = f"patient_artefacts_{encounter_id}_{timestamp}.json"
+    file_path = os.path.join(output_dir, filename)
+    
+    # Save file
+    save_json(artefacts_with_metadata, file_path)
+    
+    return file_path

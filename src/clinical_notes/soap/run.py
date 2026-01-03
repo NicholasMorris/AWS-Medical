@@ -1,7 +1,19 @@
 import os
 import glob
+import argparse
 from src.clinical_notes.soap.generator import generate_soap_note
-from src.common.io import load_json, save_soap_note
+from src.clinical_notes.decision_support import generate_decision_support_prompts
+from src.clinical_notes.patient_artefacts import (
+    generate_patient_handout,
+    generate_after_visit_summary,
+    generate_followup_checklist
+)
+from src.common.io import (
+    load_json, 
+    save_soap_note,
+    save_decision_support_prompts,
+    save_patient_artefacts
+)
 
 
 def find_latest_medical_analysis(input_dir: str = "/workspaces/AWS-Medical/data/outputs") -> str:
@@ -23,8 +35,14 @@ def find_latest_medical_analysis(input_dir: str = "/workspaces/AWS-Medical/data/
     return files[0]
 
 
-def main():
-    """Main workflow: Load medical analysis results and generate SOAP note."""
+def main(decision_support: bool = False, patient_artefacts: bool = False):
+    """
+    Main workflow: Load medical analysis results and generate SOAP note.
+    
+    Args:
+        decision_support: If True, generate "Did you consider?" prompts
+        patient_artefacts: If True, generate patient handout, summary, and checklist
+    """
     
     # Find latest medical analysis results
     analysis_file = find_latest_medical_analysis()
@@ -47,15 +65,89 @@ def main():
     )
     
     # Save SOAP note with dynamic naming and correlation IDs
-    output_file = save_soap_note(
+    soap_output = save_soap_note(
         soap_data=soap,
         encounter_id=encounter_id,
         correlation_id=correlation_id
     )
     
-    print(f"SOAP note saved to: {output_file}")
-    return output_file
+    print(f"SOAP note saved to: {soap_output}")
+    
+    # Generate decision support prompts if requested
+    if decision_support:
+        print("Generating decision support prompts...")
+        prompts = generate_decision_support_prompts(
+            encounter_json=encounter,
+            encounter_id=encounter_id
+        )
+        
+        ds_output = save_decision_support_prompts(
+            prompts_data=prompts,
+            encounter_id=encounter_id,
+            correlation_id=correlation_id
+        )
+        
+        print(f"Decision support prompts saved to: {ds_output}")
+    
+    # Generate patient artefacts if requested
+    if patient_artefacts:
+        print("Generating patient artefacts (handout, summary, checklist)...")
+        
+        handout = generate_patient_handout(
+            encounter_json=encounter,
+            encounter_id=encounter_id
+        )
+        
+        summary = generate_after_visit_summary(
+            encounter_json=encounter,
+            encounter_id=encounter_id
+        )
+        
+        checklist = generate_followup_checklist(
+            encounter_json=encounter,
+            encounter_id=encounter_id
+        )
+        
+        # Combine all artefacts
+        all_artefacts = {
+            **handout,
+            **summary,
+            **checklist
+        }
+        
+        pa_output = save_patient_artefacts(
+            artefacts_data=all_artefacts,
+            encounter_id=encounter_id,
+            correlation_id=correlation_id
+        )
+        
+        print(f"Patient artefacts saved to: {pa_output}")
+    
+    return soap_output
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Generate SOAP notes and optional clinical artefacts")
+    parser.add_argument(
+        "--decision-support",
+        action="store_true",
+        help="Generate 'Did you consider?' decision support prompts"
+    )
+    parser.add_argument(
+        "--patient-artefacts",
+        action="store_true",
+        help="Generate patient handout, after-visit summary, and follow-up checklist"
+    )
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help="Generate all outputs (SOAP, decision support, patient artefacts)"
+    )
+    
+    args = parser.parse_args()
+    
+    # If --all is specified, enable both options
+    decision_support = args.decision_support or args.all
+    patient_artefacts = args.patient_artefacts or args.all
+    
+    main(decision_support=decision_support, patient_artefacts=patient_artefacts)

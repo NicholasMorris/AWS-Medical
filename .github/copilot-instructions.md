@@ -22,9 +22,23 @@ The project is modularized under `src/`, with **common utilities** in `src/commo
    - `generator.py`: Claude Bedrock integration to generate SOAP notes from encounter JSON  
    - System prompts enforce Australian GP conventions and prevent hallucination  
 
-3. **`src/common/`** – Shared utilities  
+3. **`src/clinical_notes/decision_support.py`** – Non-diagnostic decision support
+   - `generate_decision_support_prompts()`: Surfaces clinical context, risk factors, and decision points
+   - Never diagnoses; uses `amazon.nova-2-lite-v1:0` (temperature: 0.3)
+   - Output: JSON with "prompts" list (3-5 items starting with "Consider...", "No red flags...", "Document...")
+   - Safety: System prompt enforces NO diagnosis, NO predictions, only context surfacing
+
+4. **`src/clinical_notes/patient_artefacts.py`** – Patient-ready plain English documents
+   - `generate_patient_handout()`: 150-200 word take-home advice (no medical jargon)
+   - `generate_after_visit_summary()`: Friendly letter summarizing today's visit
+   - `generate_followup_checklist()`: Checkbox-based patient action items
+   - All use `amazon.nova-2-lite-v1:0` (temperature: 0.2, conservative)
+   - Output: Plain text (not medical jargon); handout/summary ~150-200 words each; checklist has ☐ checkboxes
+   - Safety: All enforce plain language, no medical terminology, patient-actionable items only
+
+5. **`src/common/`** – Shared utilities  
    - `aws.py`: Cached AWS client factories (Bedrock, Transcribe, Comprehend Medical, S3)  
-   - `io.py`: JSON file I/O helpers and other general-purpose utilities  
+   - `io.py`: JSON file I/O helpers, ID generation, and save functions for all pipeline outputs
 
 ---
 
@@ -171,9 +185,21 @@ pytest tests/ --cov=src --cov-report=html
 - Follow Australian GP documentation conventions  
 - Output always valid JSON  
 
+### Decision Support & Patient Artefacts Safety
+- **Non-Diagnostic Rule**: Never suggest diagnosis, prognosis, or clinical predictions
+- **Context Surfacing**: Focus on raising questions, surfacing red flags, documenting gaps
+- **Plain Language**: Patient documents use NO medical jargon; test with non-clinician readers
+- **Decision Support Format**: Prompts start with "Consider...", "No red flags...", "Document..." or similar
+- **Patient Handout**: Use simple analogies (e.g., "take a break from screens" not "reduce computer exposure")
+- **After-Visit Summary**: Written as friendly letter from GP; include what happened, what to do, when to return
+- **Checklist**: Use ☐ checkboxes; include daily actions, weekly check-ins, warning signs
+- **Models**: Decision support uses 0.3 temperature (slightly exploratory); patient artefacts use 0.2 (conservative, safe)
+
 ### AWS & Locale
 - Default region: `ap-southeast-2`  
 - Language code: `en-AU`  
+- **Nova Model**: `amazon.nova-2-lite-v1:0` used for decision support and patient artefacts (cost-effective, fast)
+- **Claude Model**: `anthropic.claude-3-sonnet-20240229-v1:0` used for SOAP notes (higher quality, comprehensive)
 
 ---
 

@@ -4,7 +4,7 @@ from typing import Dict, Optional
 from src.common.aws import get_bedrock_runtime
 
 REGION = "ap-southeast-2"
-MODEL_ID = "anthropic.claude-3-sonnet-20240229-v1:0"
+MODEL_ID = "amazon.nova-2-lite-v1:0" #"anthropic.claude-3-sonnet-20240229-v1:0"
 
 bedrock = get_bedrock_runtime()
 

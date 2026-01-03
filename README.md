@@ -19,7 +19,7 @@ A Python application that converts medical audio recordings into structured clin
 - AWS Services enabled:
   - **Transcribe** (medical transcription jobs)
   - **Comprehend Medical** (entity extraction)
-  - **Bedrock** (Claude 3.5 Sonnet access)
+  - **Bedrock** (Claude 3.5 Sonnet and Titan model access)
   - **S3** (audio file storage)
 
 ## Installation
@@ -36,6 +36,14 @@ source .venv/bin/activate
 ```
 
 ### 2. Install Dependencies
+
+### Titan Model Test
+To verify Bedrock Titan model access, run:
+```bash
+pytest tests/test_titan_hello_world.py -v
+```
+This will invoke the Titan model with a Hello World prompt and check for a valid response.
+
 
 ```bash
 # Using uv (recommended)
@@ -102,22 +110,29 @@ Press Ctrl+C to stop and finalize transcription.
 
 ```
 src/
-├── app/                    # Entry points
+├── app/                       # Entry points
 │   └── main.py
-├── common/                 # Shared utilities
-│   ├── aws.py             # Cached AWS client factories
-│   └── io.py              # JSON I/O, ID generation, file helpers
+├── common/                    # Shared utilities
+│   ├── aws.py                # Cached AWS client factories
+│   └── io.py                 # JSON I/O, ID generation, file helpers
 ├── clinical_notes/
-│   └── soap/              # SOAP note generation
-│       ├── generator.py   # Claude Bedrock integration
-│       └── run.py         # SOAP generation pipeline
-└── transcription/         # Audio processing
-    ├── batch.py          # Batch transcription + Comprehend Medical
-    └── live.py           # Live streaming transcription
-tests/                     # Unit tests (pytest)
+│   ├── decision_support.py   # "Did you consider?" prompts (non-diagnostic)
+│   ├── patient_artefacts.py  # Handout, summary, checklist (plain English)
+│   └── soap/                 # SOAP note generation
+│       ├── generator.py      # Claude Bedrock integration
+│       └── run.py            # SOAP + optional features pipeline
+└── transcription/            # Audio processing
+    ├── batch.py             # Batch transcription + Comprehend Medical
+    └── live.py              # Live streaming transcription
+tests/                        # Unit tests (pytest)
+├── test_io.py               # I/O and ID generation tests
+├── test_aws.py              # AWS client caching tests
+├── test_generator.py        # SOAP generation tests
+├── test_decision_support.py # Decision support tests
+└── test_patient_artefacts.py # Patient artefacts tests
 data/
-├── inputs/               # Input audio files
-└── outputs/              # Generated JSON files
+├── inputs/                  # Input audio files
+└── outputs/                 # Generated JSON files
 ```
 
 ### Data Flow
@@ -243,6 +258,31 @@ tests/
 
 ### Example Test
 
+#### Titan Model Hello World
+A simple test to verify Bedrock Titan model access:
+```python
+# tests/test_titan_hello_world.py
+from src.common.aws import get_bedrock_runtime
+import json
+
+def test_titan_hello_world():
+    bedrock = get_bedrock_runtime()
+    model_id = "amazon.titan-text-lite-v1:0"
+    prompt = {"inputText": "Say hello world."}
+    response = bedrock.invoke_model(
+        modelId=model_id,
+        body=json.dumps(prompt),
+        accept="application/json",
+        contentType="application/json"
+    )
+    result = json.loads(response["body"].read())
+    assert "hello" in result["results"][0]["outputText"].lower()
+```
+Run with:
+```bash
+pytest tests/test_titan_hello_world.py -v
+```
+
 ```python
 # tests/test_io.py
 import pytest
@@ -294,6 +334,141 @@ Claude model: `anthropic.claude-3-sonnet-20240229-v1:0`
 - Temperature: `0.2` (conservative, low hallucination)
 - Max tokens: `800`
 - System prompt enforces Australian GP conventions
+
+## Decision Support & Patient Artefacts
+
+### Non-Diagnostic "Did You Consider?" Prompts
+
+Decision support prompts surface clinical context and decision points without providing diagnosis.
+
+**Features:**
+- Surfaces differential considerations, risk factors, and clinical context
+- Identifies red flags and warning signs from encounter data
+- Never diagnoses or predicts outcomes
+- Temperature: 0.3 (slightly more creative for suggestions)
+- Model: `amazon.nova-2-lite-v1:0` (fast, cost-effective)
+
+**Example Output:**
+```json
+{
+  "prompts": [
+    "Consider: Any visual changes, photophobia, or nausea with the headache? These would suggest migraine.",
+    "No red flags noted: Patient is alert, afebrile, with normal sleep. Reassuring findings.",
+    "Document: Ask about triggers (stress, foods, menses if applicable), frequency, and impact on work/life."
+  ]
+}
+```
+
+**Usage:**
+```bash
+# Generate SOAP + decision support
+python -m src.clinical_notes.soap.run --decision-support
+
+# Generate all outputs (SOAP, decision support, patient artefacts)
+python -m src.clinical_notes.soap.run --all
+```
+
+### Patient-Ready Artefacts
+
+Three complementary documents written in plain English for patient use:
+
+#### 1. Patient Handout (150-200 words)
+Plain English take-home advice. No medical jargon.
+
+**Includes:**
+- What we discussed today (in plain language)
+- What you can do at home (actionable steps)
+- When to seek help (clear warning signs)
+- Questions to ask your GP next visit
+
+**Example:**
+```
+You have a cold. Here's what you can do at home:
+- Rest: Get 8 hours of sleep each night
+- Drink plenty of water and warm fluids
+- Take paracetamol if you have a fever or body aches
+- Avoid screens for 1-2 hours before bed
+
+Come back or call if:
+- Your fever stays above 38.5°C or lasts more than 3 days
+- You have trouble breathing
+- You feel much worse suddenly
+```
+
+#### 2. After-Visit Summary (150-200 words)
+Friendly letter-style summary of what happened today.
+
+**Includes:**
+- Reason for visit
+- What the GP found
+- What we think is happening (impression, not diagnosis)
+- What you should do
+- When to follow up
+
+**Example:**
+```
+Hi [Patient Name],
+
+Here's a summary of today's visit:
+
+Today we examined you for a persistent cough. Your chest sounds clear, and your heart rhythm is normal. We think you have a post-viral cough from the cold you had last week.
+
+What you can do:
+- Continue drinking warm fluids
+- Use throat lozenges if needed
+- Call if the cough lasts longer than 2 weeks
+
+Follow up if the cough gets worse or you develop new symptoms. Otherwise, come back in 1 month for a check-up.
+
+Best regards,
+Dr. [Name]
+```
+
+#### 3. Follow-Up Checklist
+Checkbox-based patient action items to print and complete at home.
+
+**Includes:**
+- This week: daily actions (rest, medication, hydration)
+- This month: weekly check-ins
+- When to contact GP: clear warning signs
+
+**Example:**
+```
+Follow-up Checklist for Your Care
+
+This Week:
+☐ Rest at least 8 hours nightly
+☐ Drink 2-3 liters of water daily
+☐ Take paracetamol 500mg with food if needed
+
+Weekly Check-in:
+☐ Day 3: How are you feeling?
+☐ Day 7: Any improvement? Any concerns?
+
+When to Call the Doctor:
+☐ Fever above 38.5°C
+☐ Worsening cough or new symptoms
+☐ Shortness of breath
+☐ Any questions or concerns
+```
+
+**Temperature:** 0.2 (consistent, safe language)
+**Model:** `amazon.nova-2-lite-v1:0`
+
+**Usage:**
+```bash
+# Generate SOAP + patient artefacts
+python -m src.clinical_notes.soap.run --patient-artefacts
+
+# Generate all outputs
+python -m src.clinical_notes.soap.run --all
+```
+
+**Generated Files:**
+- `decision_support_{encounter_id}_{timestamp}.json` - "Did you consider?" prompts
+- `patient_artefacts_{encounter_id}_{timestamp}.json` - Handout + summary + checklist (all in one file)
+
+All files include `encounter_id` and `correlation_id` for traceability.
 
 ## Common Issues
 
