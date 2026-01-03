@@ -49,3 +49,52 @@ RUN <<EOT
     alsa-utils pulseaudio \
     && sudo rm -rf /var/lib/apt/lists/*
 EOT
+
+# add git shortcut aliases for convenience
+RUN <<EOT
+    echo '\n# Git power shortcuts' >> ~/.zshrc
+    # Pretty helpers
+    echo 'alias gs="git status -sb"' >> ~/.zshrc
+    echo 'alias gl="git log --oneline --decorate --graph -15"' >> ~/.zshrc
+    echo 'alias gco="git checkout"' >> ~/.zshrc
+    echo 'alias gcm="git commit -m"' >> ~/.zshrc
+    echo 'alias gcan="git commit --amend --no-edit"' >> ~/.zshrc
+    # Confirm helper
+    echo '_git_confirm() {' >> ~/.zshrc
+    echo '  printf "Continue? [y/N]: "' >> ~/.zshrc
+    echo '  read -r reply' >> ~/.zshrc
+    echo '  [ "$reply" = "y" ] || [ "$reply" = "Y" ]' >> ~/.zshrc
+    echo '}' >> ~/.zshrc
+    # Undo last commit locally + remotely
+    echo 'gundo() {' >> ~/.zshrc
+    echo '  branch=$(git symbolic-ref --short HEAD 2>/dev/null) || return' >> ~/.zshrc
+    echo '  git log -1 --oneline' >> ~/.zshrc
+    echo '  _git_confirm || return' >> ~/.zshrc
+    echo '  git reset --soft HEAD~1 || return' >> ~/.zshrc
+    echo '  git push --force-with-lease origin "$branch"' >> ~/.zshrc
+    echo '}' >> ~/.zshrc
+    # Squash branch commits into one
+    echo 'gsquash() {' >> ~/.zshrc
+    echo '  base=${1:-main}' >> ~/.zshrc
+    echo '  git fetch origin "$base" || return' >> ~/.zshrc
+    echo '  _git_confirm || return' >> ~/.zshrc
+    echo '  git reset --soft "$(git merge-base HEAD origin/$base)" || return' >> ~/.zshrc
+    echo '  git commit' >> ~/.zshrc
+    echo '}' >> ~/.zshrc
+    # Rebase onto a remote branch
+    echo 'grebase() {' >> ~/.zshrc
+    echo '  target=$1' >> ~/.zshrc
+    echo '  [ -z "$target" ] && echo "Usage: grebase origin/main" && return 1' >> ~/.zshrc
+    echo '  _git_confirm || return' >> ~/.zshrc
+    echo '  git fetch "${target%%/*}" || return' >> ~/.zshrc
+    echo '  git rebase "$target"' >> ~/.zshrc
+    echo '}' >> ~/.zshrc
+    # Fetch remote branch and rebase current branch onto it
+    echo 'graft() {' >> ~/.zshrc
+    echo '  branch=$1' >> ~/.zshrc
+    echo '  [ -z "$branch" ] && echo "Usage: graft branch-name" && return 1' >> ~/.zshrc
+    echo '  _git_confirm || return' >> ~/.zshrc
+    echo '  git fetch origin "$branch" || return' >> ~/.zshrc
+    echo '  git rebase "origin/$branch"' >> ~/.zshrc
+    echo '}' >> ~/.zshrc
+EOT

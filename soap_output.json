@@ -1,0 +1,19 @@
+{
+  "subjective": {
+    "presenting_complaint": "Headaches for the past 2 weeks, initially intermittent but now daily",
+    "history_of_presenting_illness": "Headaches started 2 weeks ago, initially intermittent but now daily lasting a few hours to most of the day. Describes them as a dull pressure on both sides of the head, worse with prolonged computer use.",
+    "associated_symptoms": "Sometimes feels tired and sensitive to light when headaches are bad.",
+    "explicit_negatives": "No nausea, vomiting, vision changes, head injury, recent illness, fever, medical conditions, or regular medications. No weakness, numbness, difficulty speaking, or balance problems."
+  },
+  "objective": {
+    "examination_findings": "Examination looks normal."
+  },
+  "assessment": {
+    "working_diagnosis": "Tension-type headaches likely related to posture, screen time, and stress. No red flag symptoms suggesting something more serious."
+  },
+  "plan": {
+    "management_advice": "Advised regular breaks from screens, good hydration, regular meals, improving sleep, and relaxation/posture exercises. Over-the-counter pain relief ok if needed but try to limit to avoid rebound headaches.",
+    "medications_mentioned": "Paracetamol",
+    "follow_up_or_safety_netting": "Follow up in a few weeks if no improvement and consider further investigation if needed. Seek medical help if headaches worsen suddenly, develop new symptoms like vomiting, visual changes, weakness or confusion."
+  }
+}

@@ -410,7 +410,7 @@ def print_analysis_summary(results):
 # Example usage for .m4a files
 if __name__ == "__main__":
     # Configuration
-    LOCAL_M4A_FILE = "/workspaces/AWS Medical/transcribe/recordings/recording1.m4a"  # Replace with your local .m4a file path
+    LOCAL_M4A_FILE = "/workspaces/AWS-Medical/transcribe/recordings/recording1.m4a"  # Replace with your local .m4a file path
     BUCKET_NAME = "askladmk43320la"  # Replace with your S3 bucket
     S3_KEY = "recordings/recording.m4a"  # S3 path for your file
     OUTPUT_BUCKET = "askladmk43320la"  # Replace with your output bucket

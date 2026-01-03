@@ -17,6 +17,7 @@
         "eamodio.gitlens",
         "esbenp.prettier-vscode",
         "donjayamanne.python-environment-manager",
+        "ms-azuretools.vscode-containers"
       ]
     }
 },
@@ -32,8 +33,8 @@
 },
 "mounts": [
         "source=${localEnv:HOME}/.aws,target=/home/developer/.aws,type=bind",
-        "source=${localEnv:HOME}/.ssh/id_rsa,target=/home/developer/.ssh/known_hosts,type=bind",
-        "source=${localEnv:HOME}/.ssh/id_rsa,target=/home/developer/.ssh/id_rsa,type=bind"
+        // "source=${localEnv:HOME}/.ssh/id_rsa,target=/home/developer/.ssh/known_hosts,type=bind",
+        // "source=${localEnv:HOME}/.ssh/id_rsa,target=/home/developer/.ssh/id_github,type=bind"
     ],
   "containerEnv": {
         "AWS_PROFILE": "admin"
