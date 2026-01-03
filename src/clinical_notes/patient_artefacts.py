@@ -3,15 +3,15 @@
 import json
 from typing import Dict, Optional
 from src.common.aws import get_bedrock_runtime
-
-MODEL_ID = "amazon.nova-2-lite-v1:0"
+from src.common.models import MODEL_MAP, get_default_model
 
 bedrock = get_bedrock_runtime()
 
 
 def generate_patient_handout(
     encounter_json: Dict,
-    encounter_id: Optional[str] = None
+    encounter_id: Optional[str] = None,
+    model: str = "nova",
 ) -> Dict:
     """
     Generate plain English patient handout (take-home advice).
@@ -64,8 +64,11 @@ Return plain text only (not JSON).
         ]
     }
 
+    # Patient artefacts default to 'nova' (fast, cost-effective)
+    model_name = model or "nova"
+    model_id = MODEL_MAP.get(model_name, MODEL_MAP["nova"])
     response = bedrock.invoke_model(
-        modelId=MODEL_ID,
+        modelId=model_id,
         body=json.dumps(body)
     )
 
@@ -82,7 +85,8 @@ Return plain text only (not JSON).
 
 def generate_after_visit_summary(
     encounter_json: Dict,
-    encounter_id: Optional[str] = None
+    encounter_id: Optional[str] = None,
+    model: str = "nova",
 ) -> Dict:
     """
     Generate after-visit summary: what happened today in plain language.
@@ -131,8 +135,11 @@ Return plain text only.
         ]
     }
 
+    # Patient artefacts default to 'nova' (fast, cost-effective)
+    model_name = model or "nova"
+    model_id = MODEL_MAP.get(model_name, MODEL_MAP["nova"])
     response = bedrock.invoke_model(
-        modelId=MODEL_ID,
+        modelId=model_id,
         body=json.dumps(body)
     )
 
@@ -149,7 +156,8 @@ Return plain text only.
 
 def generate_followup_checklist(
     encounter_json: Dict,
-    encounter_id: Optional[str] = None
+    encounter_id: Optional[str] = None,
+    model: str = "nova",
 ) -> Dict:
     """
     Generate patient-actionable follow-up checklist.
@@ -198,8 +206,11 @@ Return plain text with checkboxes (☐).
         ]
     }
 
+    # Patient artefacts default to 'nova' (fast, cost-effective)
+    model_name = model or "nova"
+    model_id = MODEL_MAP.get(model_name, MODEL_MAP["nova"])
     response = bedrock.invoke_model(
-        modelId=MODEL_ID,
+        modelId=model_id,
         body=json.dumps(body)
     )
 

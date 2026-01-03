@@ -335,6 +335,21 @@ Claude model: `anthropic.claude-3-sonnet-20240229-v1:0`
 - Max tokens: `800`
 - System prompt enforces Australian GP conventions
 
+### Switching Models & LangChain (Optional)
+
+You can switch the LLM used for SOAP generation or opt into using LangChain as an intermediary.
+
+- To select the model at call time, pass `model="nova"` or `model="claude"` to `generate_soap_note()`.
+
+- To enable LangChain routing (optional), set the environment variable `USE_LANGCHAIN=1` and install `langchain`:
+
+```bash
+pip install langchain
+export USE_LANGCHAIN=1
+```
+
+When enabled, the code will attempt to call `src/clinical_notes/soap/langchain_adapter.py`. This adapter is a thin placeholder in the repository; projects using LangChain should implement Bedrock-backed LLM configuration there.
+
 ## Decision Support & Patient Artefacts
 
 ### Non-Diagnostic "Did You Consider?" Prompts

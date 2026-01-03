@@ -22,3 +22,6 @@ dev = [
     "pylint>=2.0",
     "mypy>=1.0",
 ]
+langchain = [
+    "langchain>=0.0.300",
+]

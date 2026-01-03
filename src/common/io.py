@@ -237,3 +237,26 @@ def save_patient_artefacts(
     save_json(artefacts_with_metadata, file_path)
     
     return file_path
+
+
+def invoke_model(model: str, input_data: dict) -> dict:
+    """
+    Invokes the specified model with the given input data.
+    
+    Args:
+        model (str): The model to invoke ('nova' or 'claude').
+        input_data (dict): The input data for the model.
+        
+    Returns:
+        dict: The model's response.
+    """
+    if model == "nova":
+        # Handle Nova Lite input/output structure
+        pass
+    elif model == "claude":
+        # Handle Claude input/output structure
+        pass
+    # Add more models as needed
+    
+    # For now, just return the input data as a placeholder
+    return input_data

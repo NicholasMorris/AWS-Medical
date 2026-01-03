@@ -213,6 +213,28 @@ class TestSOAPNoteGeneration:
         
         assert body["temperature"] == 0.2
 
+    @patch("src.clinical_notes.soap.generator.bedrock")
+    def test_generate_soap_note_uses_nova_model_when_requested(self, mock_bedrock):
+        """generate_soap_note should use Nova model when model='nova'."""
+        expected_soap = {
+            "subjective": "Test",
+            "objective": "Test",
+            "assessment": "Test",
+            "plan": "Test"
+        }
+
+        mock_bedrock.invoke_model.return_value = create_mock_bedrock_response(expected_soap)
+
+        encounter = {"full_transcript": "Test"}
+        generate_soap_note(encounter, model="nova")
+
+        call_kwargs = mock_bedrock.invoke_model.call_args[1]
+        # Bedrock may accept either short model id or full ARN; verify it contains 'nova'
+        assert "nova" in call_kwargs["modelId"]
+        body = json.loads(call_kwargs["body"])
+        # Nova adapter places prompt under `input`
+        assert "input" in body
+
 
 class TestSOAPNoteValidation:
     """Tests for SOAP note content validation."""
@@ -328,3 +350,25 @@ class TestSOAPNoteEdgeCases:
         assert result == expected_soap
         assert "encounter_id" not in result
         assert "correlation_id" not in result
+
+
+def test_generate_soap_note_uses_langchain_if_enabled(monkeypatch):
+    """If USE_LANGCHAIN=1, generator should call LangChain adapter instead of Bedrock."""
+    expected_soap = {
+        "subjective": "LC",
+        "objective": "LC",
+        "assessment": "LC",
+        "plan": "LC"
+    }
+
+    # Patch the langchain adapter to return our expected soap
+    def fake_langchain(encounter_json, model_name):
+        return expected_soap
+
+    monkeypatch.setenv("USE_LANGCHAIN", "1")
+    monkeypatch.setattr("src.clinical_notes.soap.langchain_adapter.call_model_via_langchain", fake_langchain)
+
+    # Ensure bedrock is not called by not patching it; call should succeed via langchain
+    encounter = {"full_transcript": "Test"}
+    result = generate_soap_note(encounter)
+    assert result == expected_soap

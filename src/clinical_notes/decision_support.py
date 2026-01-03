@@ -3,8 +3,7 @@
 import json
 from typing import Dict, Optional
 from src.common.aws import get_bedrock_runtime
-
-MODEL_ID = "amazon.nova-2-lite-v1:0"
+from src.common.models import MODEL_MAP, get_default_model
 
 bedrock = get_bedrock_runtime()
 
@@ -12,7 +11,8 @@ bedrock = get_bedrock_runtime()
 def generate_decision_support_prompts(
     encounter_json: Dict,
     encounter_id: Optional[str] = None,
-    correlation_id: Optional[str] = None
+    correlation_id: Optional[str] = None,
+    model: str = None,
 ) -> Dict:
     """
     Generate decision support prompts ("Did you consider?") from encounter data.
@@ -77,15 +77,19 @@ Each prompt should start with "Consider...", "No red flags...", or "Document..."
 """
 
     body = {
-        "max_tokens": 400,
+        "max_tokens": 500,
         "temperature": 0.3,
         "messages": [
             {"role": "user", "content": user_prompt}
         ]
     }
 
+    # Decision support defaults to 'nova' for speed/cost (module-specific default)
+    model_name = model or "nova"
+    model_id = MODEL_MAP.get(model_name, MODEL_MAP["nova"])
+
     response = bedrock.invoke_model(
-        modelId=MODEL_ID,
+        modelId=model_id,
         body=json.dumps(body)
     )
 

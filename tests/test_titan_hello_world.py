@@ -6,6 +6,8 @@ from src.common.aws import get_bedrock_runtime
 import json
 
 def test_titan_hello_world():
+    # Clear cached client to avoid test pollution from other tests
+    get_bedrock_runtime.cache_clear()
     bedrock = get_bedrock_runtime()
     model_id = "arn:aws:bedrock:ap-southeast-2:721285384514:inference-profile/apac.amazon.nova-lite-v1:0"
     request_body = {
