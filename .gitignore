@@ -7,7 +7,7 @@ wheels/
 *.egg-info
 .ssh/
 .aws/
-
+*/.DS_Store
 # Data files
 transcribe/recordings/
 

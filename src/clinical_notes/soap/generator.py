@@ -1,14 +1,12 @@
 import json
 import boto3
 from typing import Dict
+from src.common.aws import get_bedrock_runtime
 
 REGION = "ap-southeast-2"
 MODEL_ID = "anthropic.claude-3-sonnet-20240229-v1:0"
 
-bedrock = boto3.client(
-    service_name="bedrock-runtime",
-    region_name=REGION
-)
+bedrock = get_bedrock_runtime()
 
 def generate_soap_note(encounter_json: Dict) -> Dict:
     """

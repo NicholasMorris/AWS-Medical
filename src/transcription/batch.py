@@ -2,6 +2,12 @@ import boto3
 import json
 import time
 import urllib.request
+import os
+from src.common.aws import (
+    get_s3_client,
+    get_transcribe_client,
+    get_comprehend_medical_client,
+)
 
 def medical_transcription_with_comprehend(
     audio_file_uri,
@@ -33,9 +39,9 @@ def medical_transcription_with_comprehend(
     """
     
     # Initialize AWS clients
-    transcribe = boto3.client('transcribe', region_name=region_name)
-    comprehend_medical = boto3.client('comprehendmedical', region_name=region_name)
-    s3 = boto3.client('s3', region_name=region_name)
+    transcribe = get_transcribe_client()
+    comprehend_medical = get_comprehend_medical_client()
+    s3 = get_s3_client(region_name)
     
     # Generate unique job name
     job_name = f"{job_name_prefix}-{int(time.time())}"
@@ -233,7 +239,7 @@ def upload_m4a_to_s3(local_file_path, bucket_name, s3_key=None, region_name="us-
     """
     Upload local .m4a file to S3
     """
-    s3 = boto3.client('s3', region_name=region_name)
+    s3 = get_s3_client(region_name)
     
     # Auto-generate S3 key if not provided
     if s3_key is None:
