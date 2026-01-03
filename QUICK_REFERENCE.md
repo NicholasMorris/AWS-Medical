@@ -70,6 +70,27 @@ python -m src.clinical_notes.soap.run --patient-artefacts
 python -m src.clinical_notes.soap.run --all
 ```
 
+## Web UI (Shiny for Python)
+
+A modern web UI is included in `webapp/` for uploading a recording and running the pipeline, with a polished, step-by-step display and download buttons for each output.
+
+Install requirements and run locally:
+
+```bash
+.venv/bin/python3 -m pip install shiny
+.venv/bin/python3 -m shiny run webapp.app:app --reload --port 8001
+```
+
+Features:
+- Drag & drop or browse to upload audio
+- Each pipeline step (transcript, SOAP, artefacts, decision support) is shown in a card with a download button
+- Download all outputs as JSON or TXT
+- Responsive, clean layout
+
+Behavior notes:
+- When `AWS_MEDICAL_S3_BUCKET` and credentials are present the UI will try to upload and transcribe the audio. Otherwise it will rely on the latest `medical_analysis_results_*.json` in `data/outputs/` to generate SOAP and artefacts.
+
+
 ---
 
 ## 📊 Key Modules Overview
