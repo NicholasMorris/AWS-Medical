@@ -2,121 +2,145 @@
 
 ## Project Overview
 AWS-Medical is a Python application that converts medical audio recordings into structured clinical SOAP notes using AWS services:
+
 - **Transcription Pipeline**: Audio → transcribed text (via AWS Transcribe)
 - **Clinical Analysis**: Transcripts → medical entity extraction (via AWS Comprehend Medical)
 - **Documentation Generation**: Extracted data → SOAP notes (via Claude on Bedrock)
 
+The project is modularized under `src/`, with **common utilities** in `src/common/`. The agent should maintain clean, testable, and reusable code.
+
+---
+
 ## Architecture & Data Flow
 
 ### Core Components
-1. **`src/transcription/`** - Audio processing (live and batch)
-   - `live.py`: Real-time transcription via AWS Transcribe Streaming with sounddevice microphone input
-   - `batch.py`: Batch transcription of medical audio (.m4a files) with speaker diarization
+1. **`src/transcription/`** – Audio processing  
+   - `live.py`: Real-time transcription via AWS Transcribe Streaming  
+   - `batch.py`: Batch transcription of medical audio files (.m4a) with speaker diarization  
 
-2. **`src/clinical_notes/soap/`** - Clinical documentation generation
-   - `generator.py`: Claude Bedrock integration to generate SOAP notes from encounter JSON
-   - Uses system prompt enforcing Australian GP conventions, no hallucination
+2. **`src/clinical_notes/soap/`** – Clinical documentation generation  
+   - `generator.py`: Claude Bedrock integration to generate SOAP notes from encounter JSON  
+   - System prompts enforce Australian GP conventions and prevent hallucination  
 
-3. **`src/common/`** - Shared utilities
-   - `aws.py`: Cached AWS client factories (Bedrock, Transcribe, Comprehend Medical, S3)
-   - `io.py`: JSON file I/O helpers
+3. **`src/common/`** – Shared utilities  
+   - `aws.py`: Cached AWS client factories (Bedrock, Transcribe, Comprehend Medical, S3)  
+   - `io.py`: JSON file I/O helpers and other general-purpose utilities  
+
+---
 
 ### Data Flow Example
-```
-Audio File (S3) 
-  → batch.start_medical_transcription_job() 
-  → medical_analysis_results_{timestamp}.json (entities, speakers)
-  → generate_soap_note() 
-  → soap_output.json (structured clinical note)
-```
 
-## Key Technical Patterns
+Audio File (S3)
+→ batch.start_medical_transcription_job()
+→ medical_analysis_results_{timestamp}.json (entities, speakers)
+→ generate_soap_note()
+→ soap_output.json (structured clinical note)
 
-### AWS Clients
-All AWS clients are cached with `@lru_cache` in `src/common/aws.py`. Default region is `ap-southeast-2`.
-- Use `get_bedrock_runtime()`, `get_transcribe_client()`, `get_comprehend_medical_client()`, `get_s3_client()`
-- Pass `region_name=` param to override default region
+---
 
-### Live Transcription (live.py)
-- Uses `sounddevice.RawInputStream` callback to capture PCM16 audio chunks
-- Asyncio-based sender/receiver: audio chunks → queue → async `audio_sender()` → Transcribe stream
-- Signal handlers catch Ctrl+C to gracefully end stream and shutdown
-- Configuration at top of file: `SAMPLE_RATE=16000`, `CHUNK_MS=100`, `LANGUAGE_CODE="en-AU"`
-- Handler class `TranscriptCollector` collects partial (interim) and final results separately
+## Key Guidelines
 
-### Batch Transcription (batch.py)
-- Core function: `medical_transcription_with_comprehend()` orchestrates entire pipeline
-- Starts medical transcription job with speaker diarization (`MaxSpeakerLabels`)
-- Polls job status every 10 seconds until COMPLETED/FAILED
-- Downloads transcript JSON from S3, parses speaker segments and items
-- Runs Comprehend Medical analysis on transcript text
-- Returns combined dict with transcription + medical entities
+### 1. Utility Functions & Common Modules
+- Any function, class, or code snippet reused in multiple scripts should be **moved to `src/common/`**.  
+- The agent should **scan for duplicated or utility-like code** (file I/O, AWS calls, JSON manipulation, logging) and consolidate it into common scripts.  
+- Avoid hardcoding references to existing common scripts; treat them as **examples of what belongs in `src/common/`**.  
 
-### SOAP Note Generation (generator.py)
-- Model: Claude 3.5 Sonnet (`anthropic.claude-3-sonnet-20240229-v1:0`)
-- Temperature: 0.2 (conservative, low hallucination)
-- Takes encounter JSON (from medical transcription) → outputs SOAP JSON with keys: `subjective`, `objective`, `assessment`, `plan`
-- System prompt explicitly forbids inventing symptoms; enforces Australian GP conventions
+### 2. AWS Clients
+- Centralize all AWS clients in `src/common/aws.py`.  
+- Use `@lru_cache` to cache clients.  
+- Pass `region_name=` param to override default `ap-southeast-2`.  
+- Typical clients: Bedrock runtime, Transcribe, Comprehend Medical, S3.  
+
+### 3. IO & File Handling
+- Centralize all JSON file read/write, logging, and reusable helpers in `src/common/io.py`.  
+- Refactor duplicate file operations in scripts to use these utilities.  
+
+### 4. Code Quality
+- Follow **PEP8** style guidelines.  
+- Apply **Black formatting**: enforces consistent style (indentation, line breaks, spacing).  
+- Include **type hints and docstrings** for all functions and classes.  
+
+### 5. Modularity & Single Responsibility
+- Each script/module should do one thing and pass structured objects or JSON to other modules.  
+- Avoid tight coupling between transcription, comprehension, and SOAP generation.
+
+### 6. Testing
+- Add unit tests for all new or refactored functions in a `tests/` folder.  
+- Test common utilities independently from the pipeline.
+
+### 7. Documentation
+- Update `README.md` whenever functionality changes.  
+- Include instructions on module usage, data formats, and AWS setup.
+
+---
+
+## Pipeline Tasks
+
+1. **Transcription & Comprehension**  
+   - Batch or live transcription → AWS Comprehend Medical → structured JSON.  
+   - Identify AWS calls and file I/O → move to common modules.
+
+2. **SOAP Note Generation**  
+   - Input: structured transcription JSON  
+   - Output: `soap_output.json`  
+   - Ensure logic is modular, testable, and reusable.
+
+3. **Live Transcription**  
+   - Integrate live streaming with full pipeline  
+   - Generate partial SOAP notes optionally in real time
+
+4. **Dashboard / UI**  
+   - Consume JSON outputs from SOAP generation  
+   - Ensure consistent and parseable JSON structure
+
+---
 
 ## Developer Workflow
 
-### Setup
-```bash
-uv pip install -e .
-```
-Dependencies in `pyproject.toml`: sounddevice, boto3, amazon-transcribe, aiofile
+1. Scan scripts for **reusable patterns** (AWS calls, IO, helper functions).  
+2. Move identified utilities to `src/common/`.  
+3. Refactor pipeline scripts to call common utilities instead of duplicating code.  
+4. Maintain modularity and single responsibility per script.  
+5. Add or maintain unit tests in `tests/`.  
+6. Apply **Black formatting** and PEP8 compliance.  
+7. Update `README.md`.  
+8. Integrate full pipeline: transcription → comprehension → SOAP generation → live transcription → dashboard.
 
-### Key Files to Modify
-- **New transcription features**: Add to `src/transcription/` (live.py for streaming, batch.py for batch jobs)
-- **SOAP note improvements**: Modify `generate_soap_note()` prompt or add post-processing in `generator.py`
-- **New AWS services**: Add cached client factory to `aws.py`, import in relevant module
-- **Data format changes**: Update `src/common/io.py` and corresponding callers
-
-### Testing / Running
-- `python src/transcription/live.py` - Start live transcription with microphone
-- `python src/clinical_notes/soap/run.py` - Generate SOAP note from existing JSON in `data/outputs/`
-- `python -c "from src.common.aws import get_bedrock_runtime; print(get_bedrock_runtime())"` - Verify AWS setup
+---
 
 ## Important Conventions
 
 ### Medical Transcription Settings
-- Medical specialty fixed at `"PRIMARYCARE"` (only current option)
-- Audio format: `.m4a` files only (batch transcription)
-- Speaker diarization: `MaxSpeakerLabels` typically 2 (patient + clinician)
-- Always enable `ShowSpeakerLabels: True` in settings for conversation analysis
+- Specialty fixed at `"PRIMARYCARE"`  
+- Audio format: `.m4a` (batch), PCM16 mono 16kHz (live)  
+- Speaker diarization enabled (`ShowSpeakerLabels=True`)  
+- MaxSpeakerLabels typically 2 (patient + clinician)  
 
-### SOAP Note Generation Constraints
-- **Never hallucinate**: Only use data explicitly in encounter JSON
-- **Preserve negatives**: Document "no vomiting" if stated
-- **Conservative language**: Use "likely", "consistent with" instead of certainties
-- **Australian context**: Follow GP documentation standards (see system prompt in generator.py)
-- Output always valid JSON
+### SOAP Note Generation
+- **Never hallucinate**: only use data in encounter JSON  
+- Preserve negatives explicitly  
+- Use conservative language: `"likely"`, `"consistent with"`  
+- Follow Australian GP documentation conventions  
+- Output always valid JSON  
 
-### Region & Locale
-- Default region: `ap-southeast-2` (Sydney, Australia)
-- Language code: `en-AU` (Australian English) for transcription
-- Adjust in respective files if needed (e.g., `live.py` line 11, `batch.py` parameter)
+### AWS & Locale
+- Default region: `ap-southeast-2`  
+- Language code: `en-AU`  
+
+---
 
 ## Common Integration Points
 
-### Adding Medical Entity Enrichment
-1. Call `get_comprehend_medical_client()` in batch.py
-2. Pass transcribed text to `detect_entities_v2()` (example already in batch.py)
-3. Merge entity results into encounter JSON before passing to `generate_soap_note()`
+- New AWS services: add cached client in `aws.py`  
+- Transcription & comprehension: move repeated logic to common modules  
+- SOAP note fields: modify `user_prompt` in `generator.py` and update expected JSON structure  
+- Error handling: centralized logging and exception handling  
 
-### Extending SOAP Note Fields
-1. Modify the `user_prompt` in `generator.py` to request additional sections
-2. Update return JSON keys in expected structure
-3. Test with `python src/clinical_notes/soap/run.py` against sample input
-
-### Error Handling Patterns
-- Transcription job failures: Check `FailureReason` in status response (batch.py line ~85)
-- S3 URI parsing: Handle both HTTPS URL and `s3://` URI formats (batch.py line ~115)
-- Bedrock model errors: Check response structure and `invoke_model()` exceptions
+---
 
 ## Debugging Tips
 
-1. **AWS credential issues**: Ensure AWS CLI is configured with correct credentials (container has AWS CLI pre-installed)
-2. **Transcription timeouts**: Batch jobs can take 10-20 minutes; check S3 logs for job status
-3. **SOAP JSON parsing**: Bedrock response wraps actual JSON in `content[0].text`; see generator.py line ~70
-4. **Audio format errors**: Batch only accepts `.m4a`; live transcription requires 16kHz PCM16 mono
+- AWS credentials: verify with CLI  
+- Transcription timeouts: check S3 logs  
+- SOAP JSON parsing: Bedrock wraps JSON in `content[0].text`  
+- Audio format errors: batch only accepts `.m4a`, live requires 16kHz PCM16 mono  
