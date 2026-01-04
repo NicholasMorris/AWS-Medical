@@ -96,13 +96,33 @@ You can also pass `--analysis-file` to skip the transcription step and reuse an 
 A dedicated UI renders the transcript, SOAP note, patient artefacts, and decision support prompts in a single dashboard. It reads the JSON files from `data/outputs/` and updates automatically when new runs are saved. Launch it via Shiny:
 
 ```bash
+# Preferred: start the visualizer via the package shim (recommended)
+python -m shiny run webapp.app:app --reload --port 8002
+```
+
+Or, you can still run the visualizer module directly:
+
+```bash
 python -m shiny run webapp/visualizer.py --reload --port 8002
 ```
 
-Or (after running `pip install -e .`) use the helper script:
+After installing the package (`uv pip install -e .`) you can also use the helper script:
 
 ```bash
 aws-medical-visualizer --port 8002
+```
+
+Developer Makefile shortcuts are available:
+
+```bash
+# Run tests
+make test
+
+# Start visualizer
+make run-visualizer
+
+# Run the end-to-end pipeline helper
+make run-pipeline
 ```
 
 ### Process Audio File (Batch Transcription)
