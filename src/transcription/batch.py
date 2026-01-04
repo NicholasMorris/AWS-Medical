@@ -245,7 +245,7 @@ def process_local_m4a_file(
     max_speakers=2,
     show_alternatives=False,  # Default to False to avoid the error
     max_alternatives=2,
-    region_name="us-east-1",
+    region_name="ap-southeast-2",
     cleanup_s3_file=False
 ):
     """

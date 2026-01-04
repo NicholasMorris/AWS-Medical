@@ -30,3 +30,6 @@ shiny = [
     "shiny",
     "shinywidgets"
 ]
+
+[project.scripts]
+aws-medical-visualizer = "webapp.visualizer:run_visualizer"

@@ -80,6 +80,31 @@ This will:
 3. Generate SOAP note with the configured Bedrock model (Nova by default)
 4. Save as `soap_output_{encounter_id}_{timestamp}.json` with full correlation metadata
 
+### Run the full pipeline from a local recording
+
+If you want to regenerate the analysis from `data/recordings/recording1.m4a`, run the end-to-end helper. It uploads the audio to your configured S3 bucket, kicks off Transcribe + Comprehend Medical, saves `medical_analysis_results_{encounter_id}_{timestamp}.json`, then produces SOAP, decision support, and patient artefacts:
+
+```bash
+AWS_MEDICAL_S3_BUCKET=<your-bucket> \
+    python scripts/run_pipeline.py --s3-region ap-southeast-2 --cleanup-s3
+```
+
+You can also pass `--analysis-file` to skip the transcription step and reuse an existing `medical_analysis_results_*.json`, or `--no-decision-support` / `--no-patient-artefacts` to control which outputs are generated.
+
+### Visualize pipeline outputs in the browser
+
+A dedicated UI renders the transcript, SOAP note, patient artefacts, and decision support prompts in a single dashboard. It reads the JSON files from `data/outputs/` and updates automatically when new runs are saved. Launch it via Shiny:
+
+```bash
+python -m shiny run webapp/visualizer.py --reload --port 8002
+```
+
+Or (after running `pip install -e .`) use the helper script:
+
+```bash
+aws-medical-visualizer --port 8002
+```
+
 ### Process Audio File (Batch Transcription)
 
 ```bash

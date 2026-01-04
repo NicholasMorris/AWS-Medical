@@ -1,6 +1,8 @@
 import os
 import glob
 import argparse
+from pathlib import Path
+from typing import Optional
 from src.clinical_notes.soap.generator import generate_soap_note
 from src.clinical_notes.decision_support import generate_decision_support_prompts
 from src.clinical_notes.patient_artefacts import (
@@ -35,17 +37,29 @@ def find_latest_medical_analysis(input_dir: str = "/workspaces/AWS-Medical/data/
     return files[0]
 
 
-def main(decision_support: bool = False, patient_artefacts: bool = False):
+def main(
+    decision_support: bool = False,
+    patient_artefacts: bool = False,
+    analysis_file: Optional[str] = None,
+):
     """
     Main workflow: Load medical analysis results and generate SOAP note.
     
     Args:
         decision_support: If True, generate "Did you consider?" prompts
         patient_artefacts: If True, generate patient handout, summary, and checklist
+        analysis_file: Optional path to an existing medical analysis JSON file; if not
+            provided, the latest result in data/outputs/ will be used.
     """
-    
-    # Find latest medical analysis results
-    analysis_file = find_latest_medical_analysis()
+
+    if analysis_file:
+        analysis_path = Path(analysis_file)
+        if not analysis_path.exists():
+            raise FileNotFoundError(f"Requested medical analysis file not found: {analysis_file}")
+        analysis_file = str(analysis_path)
+    else:
+        analysis_file = find_latest_medical_analysis()
+
     print(f"Loading medical analysis from: {analysis_file}")
     
     # Load encounter data
