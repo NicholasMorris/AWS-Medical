@@ -1,0 +1,9 @@
+# Development requirements (used by Makefile install-dev)
+pytest>=7.0
+pytest-cov>=4.0
+pytest-mock>=3.10
+black>=23.0
+pylint>=2.0
+markdown
+shiny
+shinywidgets

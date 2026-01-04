@@ -1,7 +1,7 @@
 [project]
 name = "aws-medical"
 version = "0.1.0"
-description = "Add your description here"
+description = "Convert medical audio recordings to SOAP notes using AWS services and Bedrock (Nova)"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
@@ -10,3 +10,26 @@ dependencies = [
     "amazon-transcribe",
     "aiofile",
 ]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "pytest-mock>=3.10",
+]
+dev = [
+    "black>=23.0",
+    "pylint>=2.0",
+    "mypy>=1.0",
+]
+langchain = [
+    "langchain>=0.0.300",
+    "langchain-aws>=0.0.50",
+]
+shiny = [
+    "shiny",
+    "shinywidgets"
+]
+
+[project.scripts]
+aws-medical-visualizer = "webapp.visualizer:run_visualizer"

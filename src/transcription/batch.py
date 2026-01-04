@@ -1,7 +1,13 @@
 import boto3
 import json
 import time
-import urllib.request
+import os
+from src.common.aws import (
+    get_s3_client,
+    get_transcribe_client,
+    get_comprehend_medical_client,
+)
+from src.common.io import save_medical_analysis_results
 
 def medical_transcription_with_comprehend(
     audio_file_uri,
@@ -33,9 +39,9 @@ def medical_transcription_with_comprehend(
     """
     
     # Initialize AWS clients
-    transcribe = boto3.client('transcribe', region_name=region_name)
-    comprehend_medical = boto3.client('comprehendmedical', region_name=region_name)
-    s3 = boto3.client('s3', region_name=region_name)
+    transcribe = get_transcribe_client()
+    comprehend_medical = get_comprehend_medical_client()
+    s3 = get_s3_client(region_name)
     
     # Generate unique job name
     job_name = f"{job_name_prefix}-{int(time.time())}"
@@ -229,41 +235,6 @@ def medical_transcription_with_comprehend(
     
     return results
 
-def upload_m4a_to_s3(local_file_path, bucket_name, s3_key=None, region_name="us-east-1"):
-    """
-    Upload local .m4a file to S3
-    """
-    s3 = boto3.client('s3', region_name=region_name)
-    
-    # Auto-generate S3 key if not provided
-    if s3_key is None:
-        filename = os.path.basename(local_file_path)
-        timestamp = int(time.time())
-        s3_key = f"medical-audio/{timestamp}-{filename}"
-    
-    try:
-        # Check if file exists
-        if not os.path.exists(local_file_path):
-            raise FileNotFoundError(f"Local file not found: {local_file_path}")
-        
-        # Get file size for progress
-        file_size = os.path.getsize(local_file_path)
-        print(f"Uploading {local_file_path} ({file_size / (1024*1024):.2f} MB) to s3://{bucket_name}/{s3_key}")
-        
-        s3.upload_file(
-            local_file_path, 
-            bucket_name, 
-            s3_key,
-            ExtraArgs={'ContentType': 'audio/mp4'}
-        )
-        
-        s3_uri = f"s3://{bucket_name}/{s3_key}"
-        print(f"Upload completed: {s3_uri}")
-        return s3_uri
-        
-    except Exception as e:
-        raise Exception(f"Failed to upload file to S3: {str(e)}")
-
 def process_local_m4a_file(
     local_file_path,
     bucket_name,
@@ -274,7 +245,7 @@ def process_local_m4a_file(
     max_speakers=2,
     show_alternatives=False,  # Default to False to avoid the error
     max_alternatives=2,
-    region_name="us-east-1",
+    region_name="ap-southeast-2",
     cleanup_s3_file=False
 ):
     """
@@ -310,7 +281,7 @@ def process_local_m4a_file(
         # Step 3: Optional cleanup
         if cleanup_s3_file:
             print("\nStep 3: Cleaning up uploaded file...")
-            s3 = boto3.client('s3', region_name=region_name)
+            s3 = get_s3_client(region_name)
             s3_key = s3_uri.replace(f"s3://{bucket_name}/", "")
             s3.delete_object(Bucket=bucket_name, Key=s3_key)
             print(f"Deleted: {s3_uri}")
@@ -328,7 +299,7 @@ def process_local_m4a_file(
         print(f"Error processing local file: {str(e)}")
         raise
 
-def upload_m4a_to_s3(local_file_path, bucket_name, s3_key, region_name="us-east-1"):
+def upload_m4a_to_s3(local_file_path, bucket_name, s3_key, region_name="ap-southeast-2"):
     """
     Helper function to upload .m4a file to S3
     
@@ -341,7 +312,7 @@ def upload_m4a_to_s3(local_file_path, bucket_name, s3_key, region_name="us-east-
     Returns:
         str: S3 URI of uploaded file
     """
-    s3 = boto3.client('s3', region_name=region_name)
+    s3 = get_s3_client(region_name)
     
     try:
         print(f"Uploading {local_file_path} to s3://{bucket_name}/{s3_key}")
@@ -410,7 +381,7 @@ def print_analysis_summary(results):
 # Example usage for .m4a files
 if __name__ == "__main__":
     # Configuration
-    LOCAL_M4A_FILE = "/workspaces/AWS Medical/transcribe/recordings/recording1.m4a"  # Replace with your local .m4a file path
+    LOCAL_M4A_FILE = "/workspaces/AWS-Medical/transcribe/recordings/recording1.m4a"  # Replace with your local .m4a file path
     BUCKET_NAME = "askladmk43320la"  # Replace with your S3 bucket
     S3_KEY = "recordings/recording.m4a"  # S3 path for your file
     OUTPUT_BUCKET = "askladmk43320la"  # Replace with your output bucket
@@ -444,12 +415,10 @@ if __name__ == "__main__":
         # Print summary
         print_analysis_summary(results)
         
-        # Save detailed results to file
-        output_filename = f"medical_analysis_results_{int(time.time())}.json"
-        with open(output_filename, 'w') as f:
-            json.dump(results, f, indent=2, default=str)
+        # Save detailed results to file with dynamic IDs
+        output_file = save_medical_analysis_results(results)
         
-        print(f"\nDetailed results saved to: {output_filename}")
+        print(f"\nDetailed results saved to: {output_file}")
         
     except Exception as e:
         print(f"Error: {str(e)}")
